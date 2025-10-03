@@ -24,24 +24,30 @@
 /// <reference types="mongoose/types/inferschematype" />
 /// <reference types="mongoose/types/inferrawdoctype" />
 import { Document } from 'mongoose';
-export declare class Message extends Document {
+export type MessageDocument = Message & Document;
+export declare class Message {
     chatId: string;
-    firstName: string;
-    region: string;
-    district: string;
-    schoolNumber: number;
-    grade: string;
-    educationType: string;
-    specialization: string;
-    birthDate: Date;
-    phoneNumber: string;
+    firstName?: string;
+    gender?: string;
+    region?: string;
+    district?: string;
+    schoolNumber?: number;
+    address?: string;
+    grade?: string;
+    birthDate?: Date;
+    educationType?: string;
+    specialization?: string;
+    phoneNumber?: string;
+    meta: Record<string, any>;
+    createdAt?: Date;
+    updatedAt?: Date;
 }
-export declare const MessageSchema: import("mongoose").Schema<Message, import("mongoose").Model<Message, any, any, any, Document<unknown, any, Message, any, {}> & Message & Required<{
-    _id: unknown;
-}> & {
+export declare const MessageSchema: import("mongoose").Schema<Message, import("mongoose").Model<Message, any, any, any, Document<unknown, any, Message, any, {}> & Message & {
+    _id: import("mongoose").Types.ObjectId;
+} & {
     __v: number;
-}, any>, {}, {}, {}, {}, import("mongoose").DefaultSchemaOptions, Message, Document<unknown, {}, import("mongoose").FlatRecord<Message>, {}, import("mongoose").ResolveSchemaOptions<import("mongoose").DefaultSchemaOptions>> & import("mongoose").FlatRecord<Message> & Required<{
-    _id: unknown;
-}> & {
+}, any>, {}, {}, {}, {}, import("mongoose").DefaultSchemaOptions, Message, Document<unknown, {}, import("mongoose").FlatRecord<Message>, {}, import("mongoose").ResolveSchemaOptions<import("mongoose").DefaultSchemaOptions>> & import("mongoose").FlatRecord<Message> & {
+    _id: import("mongoose").Types.ObjectId;
+} & {
     __v: number;
 }>;

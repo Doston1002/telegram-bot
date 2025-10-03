@@ -1,4 +1,3 @@
-// bot.controller.ts (vaqt tuzatildi + debug, sartirovka qo'shildi)
 import { Controller, Get, Res } from '@nestjs/common';
 import { Response } from 'express';
 import { InjectModel } from '@nestjs/mongoose';
@@ -14,7 +13,7 @@ export class BotController {
   async downloadExcel(@Res() res: Response) {
     try {
       // Sartirovka: createdAt bo'yicha ascending (eski birinchi, yangi oxirida)
-      const docs: any[] = await this.messageModel.find({}).sort({ createdAt: 1 }).exec(); // ← Qo'shildi
+      const docs: any[] = await this.messageModel.find({}).sort({ createdAt: 1 }).exec();
       console.log("Controller da topilgan ma'lumotlar soni:", docs.length);
       console.log(
         "Birinchi ma'lumot vaqti (Toshkent):",
@@ -42,20 +41,30 @@ export class BotController {
         { header: 'Viloyat', key: 'region', width: 20 },
         { header: 'Tuman/Shahar', key: 'district', width: 20 },
         { header: 'Maktab raqami', key: 'schoolNumber', width: 15 },
+        { header: 'Yashash manzili', key: 'address', width: 100 },
         { header: 'Sinf', key: 'grade', width: 15 },
         { header: 'Ism Familiya', key: 'firstName', width: 25 },
+        { header: 'Jins', key: 'gender', width: 15 },
         { header: "Tug'ilgan kun", key: 'birthDate', width: 20 },
         { header: "Ta'lim turi", key: 'educationType', width: 30 },
         { header: 'Yo‘nalish', key: 'specialization', width: 25 },
         { header: 'Telefon raqam', key: 'phoneNumber', width: 20 },
-        { header: 'Yaratilgan vaqt (Toshkent)', key: 'createdAt', width: 25 }, // ← Izoh
+        { header: 'Yaratilgan vaqt (Toshkent)', key: 'createdAt', width: 25 },
       ];
 
       docs.forEach(msg => {
         const row = msg.toObject();
         // Vaqtni to'g'ri konvertatsiya
         row.birthDate = row.birthDate
-          ? new Date(row.birthDate).toLocaleDateString('uz-UZ', { timeZone: 'Asia/Tashkent' })
+          ? new Date(row.birthDate)
+              .toLocaleDateString('uz-UZ', {
+                timeZone: 'Asia/Tashkent',
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              })
+              .split('/')
+              .join('.')
           : '';
         row.createdAt = row.createdAt
           ? new Date(row.createdAt).toLocaleString('uz-UZ', {

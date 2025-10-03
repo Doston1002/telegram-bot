@@ -1,18 +1,17 @@
-// bot.service.ts (yangilangan: birthDate va phoneNumber steps qo'shildi)
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Message } from './message.entity';
+import { Message, MessageDocument } from './message.entity';
 import { Telegraf, Markup } from 'telegraf';
 
-const BOT_TOKEN = '8082153813:AAEOWJvSMYv-kqYrHdw_7Jsg2NSWhX3c7Ns'; // o‘zingizning tokeningizni yozing
+const BOT_TOKEN = process.env.BOT_TOKEN || '8082153813:AAEOWJvSMYv-kqYrHdw_7Jsg2NSWhX3c7Ns';
 
 @Injectable()
 export class BotService implements OnModuleInit {
   private bot: Telegraf;
-  private userSteps = new Map();
+  private userSteps = new Map<number, string>();
 
-  constructor(@InjectModel(Message.name) private messageModel: Model<Message>) {
+  constructor(@InjectModel(Message.name) private messageModel: Model<MessageDocument>) {
     this.bot = new Telegraf(BOT_TOKEN);
   }
 
@@ -23,9 +22,10 @@ export class BotService implements OnModuleInit {
   }
 
   startBot() {
+    // /start
     this.bot.start(async ctx => {
-      const chatId = ctx.chat.id;
-      if (this.userSteps.has(chatId)) {
+      const chatIdNum = ctx.chat.id;
+      if (this.userSteps.has(chatIdNum)) {
         await ctx.reply(
           'Sizda allaqachon ro‘yxatdan o‘tish jarayoni boshlangan. Iltimos, uni tugating yoki /reset buyrug‘ini yuboring.',
           Markup.inlineKeyboard([[Markup.button.callback('🔄 Jarayonni tozalash', 'reset_steps')]]),
@@ -33,30 +33,37 @@ export class BotService implements OnModuleInit {
         return;
       }
 
-      // Majburiy obuna tekshiruvi olib tashlandi - darhol ism so'ra
-      this.userSteps.set(chatId, 'askName');
-      await ctx.reply('Assalomu alaykum!\n\nIsm familiyangizni lotin alifbosida yozing:');
+      this.userSteps.set(chatIdNum, 'askName');
+      await ctx.reply(
+        'Assalomu alaykum!\n\nIsm va familiyangizni lotin alifbosida, pasport yoki tug‘ilganlik guvohnomasiga mos ravishda yozing:',
+      );
     });
 
-    // Yangi: Jarayonni tozalash
+    // /reset
     this.bot.command('reset', async ctx => {
-      const chatId = ctx.chat.id;
-      this.userSteps.delete(chatId);
+      const chatIdNum = ctx.chat.id;
+      this.userSteps.delete(chatIdNum);
       await ctx.reply('✅ Jarayon tozalandi. Endi /start buyrug‘ini bosing.');
     });
 
     this.bot.action('reset_steps', async ctx => {
-      const chatId = ctx.chat.id;
-      this.userSteps.delete(chatId);
+      const chatIdNum = ctx.chat.id;
+      this.userSteps.delete(chatIdNum);
       await ctx.answerCbQuery('Jarayon tozalandi!');
       await ctx.reply('✅ Jarayon tozalandi. Endi ro‘yxatdan o‘tishni boshlang.');
     });
 
-    // Ism familiya
+    // Matn xabarlari umumiy handleri
     this.bot.on('text', async ctx => {
-      const step = this.userSteps.get(ctx.chat.id);
-      const chatId = ctx.chat.id.toString();
+      const chatIdNum = ctx.chat.id;
+      const chatId = chatIdNum.toString();
+      const step = this.userSteps.get(chatIdNum);
 
+      if (!step) {
+        return ctx.reply("Iltimos, /start buyrug'ini bosing va ro'yxatdan o'tishni boshlang.");
+      }
+
+      // askName
       if (step === 'askName') {
         await this.messageModel.findOneAndUpdate(
           { chatId },
@@ -64,27 +71,55 @@ export class BotService implements OnModuleInit {
           { upsert: true },
         );
 
-        this.userSteps.set(ctx.chat.id, 'askRegion');
-
+        this.userSteps.set(chatIdNum, 'askGender');
         return ctx.reply(
-          'Hududingizni tanlang:',
-          Markup.inlineKeyboard(
-            regions.map(r => [Markup.button.callback(r.name, `region_${r.id}`)]),
-          ),
+          'Jinsingizni tanlang:',
+          Markup.inlineKeyboard([
+            [Markup.button.callback('Erkak', 'gender_male')],
+            [Markup.button.callback('Ayol', 'gender_female')],
+          ]),
         );
       }
 
+      // askAddress
+      if (step === 'askAddress') {
+        await this.messageModel.updateOne({ chatId }, { address: ctx.message.text });
+        this.userSteps.set(chatIdNum, 'askSchool');
+        return ctx.reply('Maktab raqamini kiriting (faqat raqam, masalan: 123):');
+      }
+
+      // askSchool
+      if (step === 'askSchool') {
+        if (/^\d+$/.test(ctx.message.text)) {
+          await this.messageModel.updateOne({ chatId }, { schoolNumber: Number(ctx.message.text) });
+          this.userSteps.set(chatIdNum, 'askGrade');
+          return ctx.reply(
+            'Sinfingizni tanlang:',
+            Markup.inlineKeyboard(
+              Array.from({ length: 8 }, (_, i) => [
+                Markup.button.callback(`${i + 3}-sinf`, `grade_${i + 3}`),
+              ]),
+            ),
+          );
+        } else {
+          return ctx.reply(
+            'Iltimos, maktab raqamini faqat raqam sifatida kiriting (masalan: 123):',
+          );
+        }
+      }
+
+      // askBirthDate
       if (step === 'askBirthDate') {
         const birthDateStr = ctx.message.text.trim();
-        // Date validate: YYYY-MM-DD format
-        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        const dateRegex = /^\d{2}\.\d{2}\.\d{4}$/;
         if (!dateRegex.test(birthDateStr)) {
           return ctx.reply(
-            "Iltimos, tug'ilgan kuningizni YYYY-MM-DD formatida kiriting (masalan: 2010-05-15):",
+            "Iltimos, tug'ilgan kuningizni DD.MM.YYYY formatida kiriting (masalan: 02.10.1999):",
           );
         }
 
-        const birthDate = new Date(birthDateStr);
+        const [day, month, year] = birthDateStr.split('.').map(Number);
+        const birthDate = new Date(year, month - 1, day);
         if (isNaN(birthDate.getTime()) || birthDate > new Date()) {
           return ctx.reply(
             "Noto'g'ri sana. Iltimos, to'g'ri sana kiriting (kelajak sanasi bo'lmasligi kerak):",
@@ -93,8 +128,7 @@ export class BotService implements OnModuleInit {
 
         await this.messageModel.updateOne({ chatId }, { birthDate });
 
-        this.userSteps.set(ctx.chat.id, 'askPhone');
-        // Telefon uchun contact share keyboard
+        this.userSteps.set(chatIdNum, 'askPhone');
         return ctx.reply(
           'Aloqa uchun telefon raqamingizni ulashing:',
           Markup.keyboard([Markup.button.contactRequest('📞 Telefon raqamni ulashish')])
@@ -102,46 +136,38 @@ export class BotService implements OnModuleInit {
             .resize(),
         );
       }
-
-      if (step === 'askSchool' && /^\d+$/.test(ctx.message.text)) {
-        await this.messageModel.updateOne({ chatId }, { schoolNumber: Number(ctx.message.text) });
-
-        this.userSteps.set(ctx.chat.id, 'askGrade');
-        return ctx.reply(
-          'Sinfingizni tanlang:',
-          Markup.inlineKeyboard(
-            Array.from({ length: 8 }, (_, i) => [
-              Markup.button.callback(`${i + 3}-sinf`, `grade_${i + 3}`),
-            ]),
-          ),
-        );
-      }
-
-      if (step === 'askSchool' && !/^\d+$/.test(ctx.message.text)) {
-        return ctx.reply('Iltimos, maktab raqamini faqat raqam sifatida kiriting (masalan: 123):');
-      }
     });
 
-    // Yangi: Contact handler (telefon uchun)
+    // Contact handler
     this.bot.on('contact', async ctx => {
-      const step = this.userSteps.get(ctx.chat.id);
+      const chatIdNum = ctx.chat.id;
+      const step = this.userSteps.get(chatIdNum);
       if (step !== 'askPhone') return;
 
       const phoneNumber = ctx.message.contact.phone_number;
-      const chatId = ctx.chat.id.toString();
+      const chatId = chatIdNum.toString();
 
       await this.messageModel.updateOne({ chatId }, { phoneNumber });
 
-      this.userSteps.delete(ctx.chat.id);
-      await ctx.reply(
-        '✅ Ma’lumotlaringiz to’liq saqlandi. Rahmat!\n\nTelefon raqamingiz: ' + phoneNumber,
-      );
-
-      // Keyboard ni olib tashlash
+      // Jarayon tugadi
+      this.userSteps.delete(chatIdNum);
+      await ctx.reply('✅ Telefon raqamingiz saqlandi. Ro‘yxatdan o‘tish jarayoni yakunlandi!');
       await ctx.reply('Jarayon tugadi.', Markup.removeKeyboard());
     });
 
-    // Hudud tanlash
+    // Gender tanlash
+    this.bot.action(/gender_(.+)/, async ctx => {
+      const gender = ctx.match[1] === 'male' ? 'Erkak' : 'Ayol';
+      await this.messageModel.updateOne({ chatId: ctx.chat.id.toString() }, { gender });
+
+      this.userSteps.set(ctx.chat.id, 'askRegion');
+      await ctx.reply(
+        'Hududingizni tanlang:',
+        Markup.inlineKeyboard(regions.map(r => [Markup.button.callback(r.name, `region_${r.id}`)])),
+      );
+    });
+
+    // Region tanlash
     this.bot.action(/region_(\d+)/, async ctx => {
       const regionId = ctx.match[1];
       const region = regions.find(r => r.id == +regionId);
@@ -171,17 +197,17 @@ export class BotService implements OnModuleInit {
       );
     });
 
-    // Tuman tanlash
+    // District tanlash
     this.bot.action(/district_(.+)/, async ctx => {
       const district = decodeURIComponent(ctx.match[1]);
 
       await this.messageModel.updateOne({ chatId: ctx.chat.id.toString() }, { district });
 
-      this.userSteps.set(ctx.chat.id, 'askSchool');
-      await ctx.reply('Maktab raqamini kiriting (faqat raqam, masalan: 123):');
+      this.userSteps.set(ctx.chat.id, 'askAddress');
+      await ctx.reply("Yashash manzilingizni kiriting (masalan: Do'stlik MFY 12-uy):");
     });
 
-    // Sinf tanlash
+    // Grade tanlash
     this.bot.action(/grade_(\d+)/, async ctx => {
       const grade = ctx.match[1];
 
@@ -195,34 +221,32 @@ export class BotService implements OnModuleInit {
       await ctx.reply(
         'Ta’lim turini tanlang:',
         Markup.inlineKeyboard([
-          [Markup.button.callback('1. Inklyuziv ta’lim sinfi', 'edu_inclusive')],
-          [Markup.button.callback('2. Uyda yakka tartibdagi ta’lim', 'edu_home')],
+          [Markup.button.callback('Inklyuziv ta’lim sinfi', 'edu_inclusive')],
+          [Markup.button.callback('Uyda yakka tartibdagi ta’lim', 'edu_home')],
         ]),
       );
     });
 
-    // Ta’lim turi tanlash
+    // Education type
     this.bot.action(/edu_(.+)/, async ctx => {
       const type =
         ctx.match[1] === 'inclusive' ? 'Inklyuziv ta’lim sinfi' : 'Uyda yakka tartibdagi ta’lim';
-
       await this.messageModel.updateOne(
         { chatId: ctx.chat.id.toString() },
         { educationType: type },
       );
 
       this.userSteps.set(ctx.chat.id, 'askSpecialization');
-
       await ctx.reply(
         'Yo‘nalishingizni tanlang:',
         Markup.inlineKeyboard([
-          [Markup.button.callback('estrada-vokal yoki anʼanaviy ijrochilik', 'spec_estrada')],
+          [Markup.button.callback('Estrada-vokal yoki anʼanaviy ijrochilik', 'spec_estrada')],
           [Markup.button.callback('Tasviriy sanʼat', 'spec_art')],
         ]),
       );
     });
 
-    // Yo‘nalish tanlash (end now askBirthDate ga o'tkazish)
+    // Specialization
     this.bot.action(/spec_(.+)/, async ctx => {
       let specialization = '';
       switch (ctx.match[1]) {
@@ -232,30 +256,31 @@ export class BotService implements OnModuleInit {
         case 'art':
           specialization = 'Tasviriy sanʼat';
           break;
-
         default:
           specialization = 'Nomaʼlum';
       }
 
       await this.messageModel.updateOne({ chatId: ctx.chat.id.toString() }, { specialization });
 
-      this.userSteps.set(ctx.chat.id, 'askBirthDate'); // Yangi step
+      this.userSteps.set(ctx.chat.id, 'askBirthDate');
       await ctx.answerCbQuery();
-      await ctx.reply("Tug'ilgan kuningizni kiriting (YYYY-MM-DD formatida, masalan: 2010-05-15):");
+      await ctx.reply("Tug'ilgan kuningizni kiriting (DD.MM.YYYY formatida, masalan: 02.10.1999):");
     });
 
     // Umumiy xato handling
     this.bot.use(async (ctx, next) => {
-      if (ctx.callbackQuery && !this.userSteps.has(ctx.chat.id)) {
-        await ctx.answerCbQuery('Iltimos, /start buyrug‘ini bosing va qaytadan boshlang.');
-        return;
+      if (ctx.callbackQuery) {
+        const chatIdNum = ctx.chat.id;
+        if (!this.userSteps.has(chatIdNum)) {
+          await ctx.answerCbQuery('Iltimos, /start buyrug‘ini bosing va qaytadan boshlang.');
+          return;
+        }
       }
       await next();
     });
   }
 }
 
-// 📌 Regions va Districts massivlari (o'zgarmadi)
 const regions = [
   { id: 1, name: "Qoraqalpog'iston Respublikasi" },
   { id: 2, name: 'Andijon viloyati' },

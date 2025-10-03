@@ -42,8 +42,10 @@ let BotController = class BotController {
                 { header: 'Viloyat', key: 'region', width: 20 },
                 { header: 'Tuman/Shahar', key: 'district', width: 20 },
                 { header: 'Maktab raqami', key: 'schoolNumber', width: 15 },
+                { header: 'Yashash manzili', key: 'address', width: 100 },
                 { header: 'Sinf', key: 'grade', width: 15 },
                 { header: 'Ism Familiya', key: 'firstName', width: 25 },
+                { header: 'Jins', key: 'gender', width: 15 },
                 { header: "Tug'ilgan kun", key: 'birthDate', width: 20 },
                 { header: "Ta'lim turi", key: 'educationType', width: 30 },
                 { header: 'Yo‘nalish', key: 'specialization', width: 25 },
@@ -53,7 +55,15 @@ let BotController = class BotController {
             docs.forEach(msg => {
                 const row = msg.toObject();
                 row.birthDate = row.birthDate
-                    ? new Date(row.birthDate).toLocaleDateString('uz-UZ', { timeZone: 'Asia/Tashkent' })
+                    ? new Date(row.birthDate)
+                        .toLocaleDateString('uz-UZ', {
+                        timeZone: 'Asia/Tashkent',
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                    })
+                        .split('/')
+                        .join('.')
                     : '';
                 row.createdAt = row.createdAt
                     ? new Date(row.createdAt).toLocaleString('uz-UZ', {

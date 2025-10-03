@@ -61,6 +61,7 @@ let ReportBotService = class ReportBotService {
                 worksheet.columns = [
                     { header: 'Viloyat', key: 'region', width: 20 },
                     { header: 'Tuman/Shahar', key: 'district', width: 20 },
+                    { header: 'Manzil', key: 'address', width: 30 },
                     { header: 'Maktab raqami', key: 'schoolNumber', width: 15 },
                     { header: 'Sinf', key: 'grade', width: 15 },
                     { header: 'Ism Familiya', key: 'firstName', width: 25 },

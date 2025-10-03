@@ -1,38 +1,54 @@
-// message.entity.ts (yangilangan: birthDate va phoneNumber qo'shildi)
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
+export type MessageDocument = Message & Document;
+
 @Schema({ timestamps: true })
-export class Message extends Document {
-  @Prop()
+export class Message {
+  @Prop({ required: true })
   chatId: string;
 
   @Prop()
-  firstName: string;
+  firstName?: string;
 
   @Prop()
-  region: string;
+  gender?: string;
 
   @Prop()
-  district: string;
+  region?: string;
 
   @Prop()
-  schoolNumber: number;
+  district?: string;
 
   @Prop()
-  grade: string; // 3–10 sinf
+  schoolNumber?: number;
 
   @Prop()
-  educationType: string; // Inklyuziv / Yakka tartibdagi
+  address?: string;
 
   @Prop()
-  specialization: string; // Estrada-vokal / An’anaviy ijrochilik / Tasviriy san’at / Boshqa
+  grade?: string;
 
   @Prop({ type: Date })
-  birthDate: Date; // Tug'ilgan kun (YYYY-MM-DD formatida saqlanadi)
+  birthDate?: Date;
 
   @Prop()
-  phoneNumber: string; // Telefon raqam (+998 formatida)
+  educationType?: string;
+
+  @Prop()
+  specialization?: string;
+
+  @Prop()
+  phoneNumber?: string;
+
+  @Prop({ type: Object })
+  meta: Record<string, any>;
+
+  @Prop({ type: Date })
+  createdAt?: Date;
+
+  @Prop({ type: Date })
+  updatedAt?: Date;
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);

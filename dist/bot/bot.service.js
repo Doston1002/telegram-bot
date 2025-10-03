@@ -18,7 +18,7 @@ const mongoose_1 = require("@nestjs/mongoose");
 const mongoose_2 = require("mongoose");
 const message_entity_1 = require("./message.entity");
 const telegraf_1 = require("telegraf");
-const BOT_TOKEN = '8082153813:AAEOWJvSMYv-kqYrHdw_7Jsg2NSWhX3c7Ns';
+const BOT_TOKEN = process.env.BOT_TOKEN || '8082153813:AAEOWJvSMYv-kqYrHdw_7Jsg2NSWhX3c7Ns';
 let BotService = class BotService {
     constructor(messageModel) {
         this.messageModel = messageModel;
@@ -32,70 +32,92 @@ let BotService = class BotService {
     }
     startBot() {
         this.bot.start(async (ctx) => {
-            const chatId = ctx.chat.id;
-            if (this.userSteps.has(chatId)) {
+            const chatIdNum = ctx.chat.id;
+            if (this.userSteps.has(chatIdNum)) {
                 await ctx.reply('Sizda allaqachon ro‘yxatdan o‘tish jarayoni boshlangan. Iltimos, uni tugating yoki /reset buyrug‘ini yuboring.', telegraf_1.Markup.inlineKeyboard([[telegraf_1.Markup.button.callback('🔄 Jarayonni tozalash', 'reset_steps')]]));
                 return;
             }
-            this.userSteps.set(chatId, 'askName');
-            await ctx.reply('Assalomu alaykum!\n\nIsm familiyangizni lotin alifbosida yozing:');
+            this.userSteps.set(chatIdNum, 'askName');
+            await ctx.reply('Assalomu alaykum!\n\nIsm va familiyangizni lotin alifbosida, pasport yoki tug‘ilganlik guvohnomasiga mos ravishda yozing:');
         });
         this.bot.command('reset', async (ctx) => {
-            const chatId = ctx.chat.id;
-            this.userSteps.delete(chatId);
+            const chatIdNum = ctx.chat.id;
+            this.userSteps.delete(chatIdNum);
             await ctx.reply('✅ Jarayon tozalandi. Endi /start buyrug‘ini bosing.');
         });
         this.bot.action('reset_steps', async (ctx) => {
-            const chatId = ctx.chat.id;
-            this.userSteps.delete(chatId);
+            const chatIdNum = ctx.chat.id;
+            this.userSteps.delete(chatIdNum);
             await ctx.answerCbQuery('Jarayon tozalandi!');
             await ctx.reply('✅ Jarayon tozalandi. Endi ro‘yxatdan o‘tishni boshlang.');
         });
         this.bot.on('text', async (ctx) => {
-            const step = this.userSteps.get(ctx.chat.id);
-            const chatId = ctx.chat.id.toString();
+            const chatIdNum = ctx.chat.id;
+            const chatId = chatIdNum.toString();
+            const step = this.userSteps.get(chatIdNum);
+            if (!step) {
+                return ctx.reply("Iltimos, /start buyrug'ini bosing va ro'yxatdan o'tishni boshlang.");
+            }
             if (step === 'askName') {
                 await this.messageModel.findOneAndUpdate({ chatId }, { chatId, firstName: ctx.message.text }, { upsert: true });
-                this.userSteps.set(ctx.chat.id, 'askRegion');
-                return ctx.reply('Hududingizni tanlang:', telegraf_1.Markup.inlineKeyboard(regions.map(r => [telegraf_1.Markup.button.callback(r.name, `region_${r.id}`)])));
+                this.userSteps.set(chatIdNum, 'askGender');
+                return ctx.reply('Jinsingizni tanlang:', telegraf_1.Markup.inlineKeyboard([
+                    [telegraf_1.Markup.button.callback('Erkak', 'gender_male')],
+                    [telegraf_1.Markup.button.callback('Ayol', 'gender_female')],
+                ]));
+            }
+            if (step === 'askAddress') {
+                await this.messageModel.updateOne({ chatId }, { address: ctx.message.text });
+                this.userSteps.set(chatIdNum, 'askSchool');
+                return ctx.reply('Maktab raqamini kiriting (faqat raqam, masalan: 123):');
+            }
+            if (step === 'askSchool') {
+                if (/^\d+$/.test(ctx.message.text)) {
+                    await this.messageModel.updateOne({ chatId }, { schoolNumber: Number(ctx.message.text) });
+                    this.userSteps.set(chatIdNum, 'askGrade');
+                    return ctx.reply('Sinfingizni tanlang:', telegraf_1.Markup.inlineKeyboard(Array.from({ length: 8 }, (_, i) => [
+                        telegraf_1.Markup.button.callback(`${i + 3}-sinf`, `grade_${i + 3}`),
+                    ])));
+                }
+                else {
+                    return ctx.reply('Iltimos, maktab raqamini faqat raqam sifatida kiriting (masalan: 123):');
+                }
             }
             if (step === 'askBirthDate') {
                 const birthDateStr = ctx.message.text.trim();
-                const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+                const dateRegex = /^\d{2}\.\d{2}\.\d{4}$/;
                 if (!dateRegex.test(birthDateStr)) {
-                    return ctx.reply("Iltimos, tug'ilgan kuningizni YYYY-MM-DD formatida kiriting (masalan: 2010-05-15):");
+                    return ctx.reply("Iltimos, tug'ilgan kuningizni DD.MM.YYYY formatida kiriting (masalan: 02.10.1999):");
                 }
-                const birthDate = new Date(birthDateStr);
+                const [day, month, year] = birthDateStr.split('.').map(Number);
+                const birthDate = new Date(year, month - 1, day);
                 if (isNaN(birthDate.getTime()) || birthDate > new Date()) {
                     return ctx.reply("Noto'g'ri sana. Iltimos, to'g'ri sana kiriting (kelajak sanasi bo'lmasligi kerak):");
                 }
                 await this.messageModel.updateOne({ chatId }, { birthDate });
-                this.userSteps.set(ctx.chat.id, 'askPhone');
+                this.userSteps.set(chatIdNum, 'askPhone');
                 return ctx.reply('Aloqa uchun telefon raqamingizni ulashing:', telegraf_1.Markup.keyboard([telegraf_1.Markup.button.contactRequest('📞 Telefon raqamni ulashish')])
                     .oneTime()
                     .resize());
             }
-            if (step === 'askSchool' && /^\d+$/.test(ctx.message.text)) {
-                await this.messageModel.updateOne({ chatId }, { schoolNumber: Number(ctx.message.text) });
-                this.userSteps.set(ctx.chat.id, 'askGrade');
-                return ctx.reply('Sinfingizni tanlang:', telegraf_1.Markup.inlineKeyboard(Array.from({ length: 8 }, (_, i) => [
-                    telegraf_1.Markup.button.callback(`${i + 3}-sinf`, `grade_${i + 3}`),
-                ])));
-            }
-            if (step === 'askSchool' && !/^\d+$/.test(ctx.message.text)) {
-                return ctx.reply('Iltimos, maktab raqamini faqat raqam sifatida kiriting (masalan: 123):');
-            }
         });
         this.bot.on('contact', async (ctx) => {
-            const step = this.userSteps.get(ctx.chat.id);
+            const chatIdNum = ctx.chat.id;
+            const step = this.userSteps.get(chatIdNum);
             if (step !== 'askPhone')
                 return;
             const phoneNumber = ctx.message.contact.phone_number;
-            const chatId = ctx.chat.id.toString();
+            const chatId = chatIdNum.toString();
             await this.messageModel.updateOne({ chatId }, { phoneNumber });
-            this.userSteps.delete(ctx.chat.id);
-            await ctx.reply('✅ Ma’lumotlaringiz to’liq saqlandi. Rahmat!\n\nTelefon raqamingiz: ' + phoneNumber);
+            this.userSteps.delete(chatIdNum);
+            await ctx.reply('✅ Telefon raqamingiz saqlandi. Ro‘yxatdan o‘tish jarayoni yakunlandi!');
             await ctx.reply('Jarayon tugadi.', telegraf_1.Markup.removeKeyboard());
+        });
+        this.bot.action(/gender_(.+)/, async (ctx) => {
+            const gender = ctx.match[1] === 'male' ? 'Erkak' : 'Ayol';
+            await this.messageModel.updateOne({ chatId: ctx.chat.id.toString() }, { gender });
+            this.userSteps.set(ctx.chat.id, 'askRegion');
+            await ctx.reply('Hududingizni tanlang:', telegraf_1.Markup.inlineKeyboard(regions.map(r => [telegraf_1.Markup.button.callback(r.name, `region_${r.id}`)])));
         });
         this.bot.action(/region_(\d+)/, async (ctx) => {
             const regionId = ctx.match[1];
@@ -115,16 +137,16 @@ let BotService = class BotService {
         this.bot.action(/district_(.+)/, async (ctx) => {
             const district = decodeURIComponent(ctx.match[1]);
             await this.messageModel.updateOne({ chatId: ctx.chat.id.toString() }, { district });
-            this.userSteps.set(ctx.chat.id, 'askSchool');
-            await ctx.reply('Maktab raqamini kiriting (faqat raqam, masalan: 123):');
+            this.userSteps.set(ctx.chat.id, 'askAddress');
+            await ctx.reply("Yashash manzilingizni kiriting (masalan: Do'stlik MFY 12-uy):");
         });
         this.bot.action(/grade_(\d+)/, async (ctx) => {
             const grade = ctx.match[1];
             await this.messageModel.updateOne({ chatId: ctx.chat.id.toString() }, { grade: `${grade}-sinf` });
             this.userSteps.set(ctx.chat.id, 'askEducationType');
             await ctx.reply('Ta’lim turini tanlang:', telegraf_1.Markup.inlineKeyboard([
-                [telegraf_1.Markup.button.callback('1. Inklyuziv ta’lim sinfi', 'edu_inclusive')],
-                [telegraf_1.Markup.button.callback('2. Uyda yakka tartibdagi ta’lim', 'edu_home')],
+                [telegraf_1.Markup.button.callback('Inklyuziv ta’lim sinfi', 'edu_inclusive')],
+                [telegraf_1.Markup.button.callback('Uyda yakka tartibdagi ta’lim', 'edu_home')],
             ]));
         });
         this.bot.action(/edu_(.+)/, async (ctx) => {
@@ -132,7 +154,7 @@ let BotService = class BotService {
             await this.messageModel.updateOne({ chatId: ctx.chat.id.toString() }, { educationType: type });
             this.userSteps.set(ctx.chat.id, 'askSpecialization');
             await ctx.reply('Yo‘nalishingizni tanlang:', telegraf_1.Markup.inlineKeyboard([
-                [telegraf_1.Markup.button.callback('estrada-vokal yoki anʼanaviy ijrochilik', 'spec_estrada')],
+                [telegraf_1.Markup.button.callback('Estrada-vokal yoki anʼanaviy ijrochilik', 'spec_estrada')],
                 [telegraf_1.Markup.button.callback('Tasviriy sanʼat', 'spec_art')],
             ]));
         });
@@ -151,12 +173,15 @@ let BotService = class BotService {
             await this.messageModel.updateOne({ chatId: ctx.chat.id.toString() }, { specialization });
             this.userSteps.set(ctx.chat.id, 'askBirthDate');
             await ctx.answerCbQuery();
-            await ctx.reply("Tug'ilgan kuningizni kiriting (YYYY-MM-DD formatida, masalan: 2010-05-15):");
+            await ctx.reply("Tug'ilgan kuningizni kiriting (DD.MM.YYYY formatida, masalan: 02.10.1999):");
         });
         this.bot.use(async (ctx, next) => {
-            if (ctx.callbackQuery && !this.userSteps.has(ctx.chat.id)) {
-                await ctx.answerCbQuery('Iltimos, /start buyrug‘ini bosing va qaytadan boshlang.');
-                return;
+            if (ctx.callbackQuery) {
+                const chatIdNum = ctx.chat.id;
+                if (!this.userSteps.has(chatIdNum)) {
+                    await ctx.answerCbQuery('Iltimos, /start buyrug‘ini bosing va qaytadan boshlang.');
+                    return;
+                }
             }
             await next();
         });
