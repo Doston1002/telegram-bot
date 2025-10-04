@@ -114,7 +114,7 @@ export class BotService implements OnModuleInit {
         const dateRegex = /^\d{2}\.\d{2}\.\d{4}$/;
         if (!dateRegex.test(birthDateStr)) {
           return ctx.reply(
-            "Iltimos, tug'ilgan kuningizni DD.MM.YYYY formatida kiriting (masalan: 02.10.1999):",
+            "Iltimos, tug'ilgan kuningizni DD.MM.YYYY formatida kiriting (masalan: 02.10.2010):",
           );
         }
 
@@ -264,7 +264,7 @@ export class BotService implements OnModuleInit {
 
       this.userSteps.set(ctx.chat.id, 'askBirthDate');
       await ctx.answerCbQuery();
-      await ctx.reply("Tug'ilgan kuningizni kiriting (DD.MM.YYYY formatida, masalan: 02.10.1999):");
+      await ctx.reply("Tug'ilgan kuningizni kiriting (DD.MM.YYYY formatida, masalan: 02.10.2010):");
     });
 
     // Umumiy xato handling
