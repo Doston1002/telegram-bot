@@ -1,6 +1,6 @@
-import { OnModuleInit } from '@nestjs/common';
-import { Model } from 'mongoose';
-import { Message } from '../bot/message.entity';
+import { type OnModuleInit } from '@nestjs/common';
+import type { Model } from 'mongoose';
+import { Message } from './message.entity';
 export declare class ReportBotService implements OnModuleInit {
     private messageModel;
     private bot;

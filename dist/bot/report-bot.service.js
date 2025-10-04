@@ -15,13 +15,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ReportBotService = void 0;
 const common_1 = require("@nestjs/common");
 const mongoose_1 = require("@nestjs/mongoose");
-const mongoose_2 = require("mongoose");
-const message_entity_1 = require("../bot/message.entity");
+const message_entity_1 = require("./message.entity");
 const telegraf_1 = require("telegraf");
 const ExcelJS = require("exceljs");
 const path = require("path");
 const fs = require("fs");
-const REPORT_BOT_TOKEN = '7804568258:AAG_uCt2otfljGkra8qhnUk1UAOis7b1uGM';
+const REPORT_BOT_TOKEN = '8237553914:AAE19a-64DxV--NJt5b-cfxjbKpKDivwIQQ';
+const ADMIN_CHAT_ID = 5531717864;
 let ReportBotService = class ReportBotService {
     constructor(messageModel) {
         this.messageModel = messageModel;
@@ -35,20 +35,13 @@ let ReportBotService = class ReportBotService {
     }
     setupHandlers() {
         this.bot.start(async (ctx) => {
-            const ADMIN_CHAT_ID = 5531717864;
             if (ctx.chat.id !== ADMIN_CHAT_ID) {
                 return ctx.reply("❌ Sizda ruxsat yo'q. Faqat admin foydalanishi mumkin.");
             }
             await ctx.reply("📊 Ma'lumotlar yuklanmoqda... Iltimos, kuting.");
             try {
-                const docs = await this.messageModel
-                    .find({})
-                    .sort({ createdAt: 1 })
-                    .exec();
+                const docs = await this.messageModel.find({}).sort({ createdAt: 1 }).exec();
                 console.log("📋 Topilgan ma'lumotlar soni:", docs.length);
-                console.log("Birinchi ma'lumot misoli (vaqti bilan):", docs[0]
-                    ? new Date(docs[0].createdAt).toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent' })
-                    : 'Hech nima');
                 if (docs.length === 0) {
                     return ctx.reply("📭 Umumiy bazada hech qanday ma'lumot yo'q. Bot orqali test qiling.");
                 }
@@ -59,15 +52,17 @@ let ReportBotService = class ReportBotService {
                 worksheet.getCell('A1').font = { bold: true, color: { argb: 'FF0070C0' } };
                 worksheet.addRow([]);
                 worksheet.columns = [
+                    { header: 'Ism Familiya', key: 'firstName', width: 25 },
+                    { header: 'Jins', key: 'gender', width: 15 },
+                    { header: "Tug'ilgan kun", key: 'birthDate', width: 20 },
                     { header: 'Viloyat', key: 'region', width: 20 },
                     { header: 'Tuman/Shahar', key: 'district', width: 20 },
                     { header: 'Manzil', key: 'address', width: 30 },
                     { header: 'Maktab raqami', key: 'schoolNumber', width: 15 },
                     { header: 'Sinf', key: 'grade', width: 15 },
-                    { header: 'Ism Familiya', key: 'firstName', width: 25 },
-                    { header: "Tug'ilgan kun", key: 'birthDate', width: 20 },
                     { header: "Ta'lim turi", key: 'educationType', width: 30 },
-                    { header: 'Yo‘nalish', key: 'specialization', width: 25 },
+                    { header: "Yo'nalish", key: 'specialization', width: 25 },
+                    { header: 'Nogironlik guruhi', key: 'disabilityGroup', width: 20 },
                     { header: 'Telefon raqam', key: 'phoneNumber', width: 20 },
                     { header: 'Yaratilgan vaqt (Toshkent)', key: 'createdAt', width: 25 },
                 ];
@@ -112,7 +107,7 @@ let ReportBotService = class ReportBotService {
             }
         });
         this.bot.command('stats', async (ctx) => {
-            if (ctx.chat.id !== 5531717864) {
+            if (ctx.chat.id !== ADMIN_CHAT_ID) {
                 return ctx.reply("❌ Ruxsat yo'q.");
             }
             const count = await this.messageModel.countDocuments({});
@@ -124,7 +119,7 @@ let ReportBotService = class ReportBotService {
 ReportBotService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(message_entity_1.Message.name)),
-    __metadata("design:paramtypes", [mongoose_2.Model])
+    __metadata("design:paramtypes", [Function])
 ], ReportBotService);
 exports.ReportBotService = ReportBotService;
 //# sourceMappingURL=report-bot.service.js.map

@@ -1,5 +1,5 @@
-import { Response } from 'express';
-import { Model } from 'mongoose';
+import type { Response } from 'express';
+import type { Model } from 'mongoose';
 import { Message } from './message.entity';
 export declare class BotController {
     private readonly messageModel;

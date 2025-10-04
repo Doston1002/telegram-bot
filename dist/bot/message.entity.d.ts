@@ -23,20 +23,21 @@
 /// <reference types="mongoose/types/schematypes" />
 /// <reference types="mongoose/types/inferschematype" />
 /// <reference types="mongoose/types/inferrawdoctype" />
-import { Document } from 'mongoose';
+import type { Document } from 'mongoose';
 export type MessageDocument = Message & Document;
 export declare class Message {
     chatId: string;
     firstName?: string;
     gender?: string;
+    birthDate?: Date;
     region?: string;
     district?: string;
     schoolNumber?: number;
     address?: string;
     grade?: string;
-    birthDate?: Date;
     educationType?: string;
     specialization?: string;
+    disabilityGroup?: string;
     phoneNumber?: string;
     meta: Record<string, any>;
     createdAt?: Date;

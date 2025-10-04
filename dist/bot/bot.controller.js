@@ -15,7 +15,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.BotController = void 0;
 const common_1 = require("@nestjs/common");
 const mongoose_1 = require("@nestjs/mongoose");
-const mongoose_2 = require("mongoose");
 const ExcelJS = require("exceljs");
 const message_entity_1 = require("./message.entity");
 let BotController = class BotController {
@@ -26,9 +25,6 @@ let BotController = class BotController {
         try {
             const docs = await this.messageModel.find({}).sort({ createdAt: 1 }).exec();
             console.log("Controller da topilgan ma'lumotlar soni:", docs.length);
-            console.log("Birinchi ma'lumot vaqti (Toshkent):", docs[0]
-                ? new Date(docs[0].createdAt).toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent' })
-                : 'Hech nima');
             if (docs.length === 0) {
                 return res.status(404).json({ message: "Hech qanday ma'lumot topilmadi" });
             }
@@ -39,16 +35,17 @@ let BotController = class BotController {
             worksheet.getCell('A1').font = { bold: true, color: { argb: 'FF0070C0' } };
             worksheet.addRow([]);
             worksheet.columns = [
-                { header: 'Viloyat', key: 'region', width: 20 },
-                { header: 'Tuman/Shahar', key: 'district', width: 20 },
-                { header: 'Maktab raqami', key: 'schoolNumber', width: 15 },
-                { header: 'Yashash manzili', key: 'address', width: 100 },
-                { header: 'Sinf', key: 'grade', width: 15 },
                 { header: 'Ism Familiya', key: 'firstName', width: 25 },
                 { header: 'Jins', key: 'gender', width: 15 },
                 { header: "Tug'ilgan kun", key: 'birthDate', width: 20 },
+                { header: 'Viloyat', key: 'region', width: 20 },
+                { header: 'Tuman/Shahar', key: 'district', width: 20 },
+                { header: 'Yashash manzili', key: 'address', width: 100 },
+                { header: 'Maktab raqami', key: 'schoolNumber', width: 15 },
+                { header: 'Sinf', key: 'grade', width: 15 },
                 { header: "Ta'lim turi", key: 'educationType', width: 30 },
-                { header: 'Yo‘nalish', key: 'specialization', width: 25 },
+                { header: "Yo'nalish", key: 'specialization', width: 25 },
+                { header: 'Nogironlik guruhi', key: 'disabilityGroup', width: 20 },
                 { header: 'Telefon raqam', key: 'phoneNumber', width: 20 },
                 { header: 'Yaratilgan vaqt (Toshkent)', key: 'createdAt', width: 25 },
             ];
@@ -100,7 +97,7 @@ __decorate([
 BotController = __decorate([
     (0, common_1.Controller)('bot'),
     __param(0, (0, mongoose_1.InjectModel)(message_entity_1.Message.name)),
-    __metadata("design:paramtypes", [mongoose_2.Model])
+    __metadata("design:paramtypes", [Function])
 ], BotController);
 exports.BotController = BotController;
 //# sourceMappingURL=bot.controller.js.map

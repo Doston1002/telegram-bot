@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import type { Document } from 'mongoose';
 
 export type MessageDocument = Message & Document;
 
@@ -13,6 +13,9 @@ export class Message {
 
   @Prop()
   gender?: string;
+
+  @Prop({ type: Date })
+  birthDate?: Date;
 
   @Prop()
   region?: string;
@@ -29,14 +32,14 @@ export class Message {
   @Prop()
   grade?: string;
 
-  @Prop({ type: Date })
-  birthDate?: Date;
-
   @Prop()
   educationType?: string;
 
   @Prop()
   specialization?: string;
+
+  @Prop()
+  disabilityGroup?: string;
 
   @Prop()
   phoneNumber?: string;

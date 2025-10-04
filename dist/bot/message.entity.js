@@ -26,6 +26,10 @@ __decorate([
     __metadata("design:type", String)
 ], Message.prototype, "gender", void 0);
 __decorate([
+    (0, mongoose_1.Prop)({ type: Date }),
+    __metadata("design:type", Date)
+], Message.prototype, "birthDate", void 0);
+__decorate([
     (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
 ], Message.prototype, "region", void 0);
@@ -46,10 +50,6 @@ __decorate([
     __metadata("design:type", String)
 ], Message.prototype, "grade", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ type: Date }),
-    __metadata("design:type", Date)
-], Message.prototype, "birthDate", void 0);
-__decorate([
     (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
 ], Message.prototype, "educationType", void 0);
@@ -57,6 +57,10 @@ __decorate([
     (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
 ], Message.prototype, "specialization", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], Message.prototype, "disabilityGroup", void 0);
 __decorate([
     (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
