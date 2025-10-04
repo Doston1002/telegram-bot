@@ -4,7 +4,7 @@ import { Model } from 'mongoose';
 import { Message, MessageDocument } from './message.entity';
 import { Telegraf, Markup } from 'telegraf';
 
-const BOT_TOKEN = process.env.BOT_TOKEN || '8082153813:AAEOWJvSMYv-kqYrHdw_7Jsg2NSWhX3c7Ns';
+const BOT_TOKEN = '8082153813:AAEOWJvSMYv-kqYrHdw_7Jsg2NSWhX3c7Ns';
 
 @Injectable()
 export class BotService implements OnModuleInit {

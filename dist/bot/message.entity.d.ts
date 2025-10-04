@@ -23,57 +23,31 @@
 /// <reference types="mongoose/types/schematypes" />
 /// <reference types="mongoose/types/inferschematype" />
 /// <reference types="mongoose/types/inferrawdoctype" />
-import type { Document } from 'mongoose';
+import { Document } from 'mongoose';
 export type MessageDocument = Message & Document;
 export declare class Message {
-  chatId: string;
-  firstName?: string;
-  gender?: string;
-  birthDate?: Date;
-  region?: string;
-  district?: string;
-  schoolNumber?: number;
-  address?: string;
-  grade?: string;
-  educationType?: string;
-  specialization?: string;
-  disabilityGroup?: string;
-  phoneNumber?: string;
-  meta: Record<string, any>;
-  createdAt?: Date;
-  updatedAt?: Date;
+    chatId: string;
+    firstName?: string;
+    gender?: string;
+    region?: string;
+    district?: string;
+    schoolNumber?: number;
+    address?: string;
+    grade?: string;
+    birthDate?: Date;
+    educationType?: string;
+    specialization?: string;
+    phoneNumber?: string;
+    meta: Record<string, any>;
+    createdAt?: Date;
+    updatedAt?: Date;
 }
-export declare const MessageSchema: import('mongoose').Schema<
-  Message,
-  import('mongoose').Model<
-    Message,
-    any,
-    any,
-    any,
-    Document<unknown, any, Message, any, {}> &
-      Message & {
-        _id: import('mongoose').Types.ObjectId;
-      } & {
-        __v: number;
-      },
-    any
-  >,
-  {},
-  {},
-  {},
-  {},
-  import('mongoose').DefaultSchemaOptions,
-  Message,
-  Document<
-    unknown,
-    {},
-    import('mongoose').FlatRecord<Message>,
-    {},
-    import('mongoose').ResolveSchemaOptions<import('mongoose').DefaultSchemaOptions>
-  > &
-    import('mongoose').FlatRecord<Message> & {
-      _id: import('mongoose').Types.ObjectId;
-    } & {
-      __v: number;
-    }
->;
+export declare const MessageSchema: import("mongoose").Schema<Message, import("mongoose").Model<Message, any, any, any, Document<unknown, any, Message, any, {}> & Message & {
+    _id: import("mongoose").Types.ObjectId;
+} & {
+    __v: number;
+}, any>, {}, {}, {}, {}, import("mongoose").DefaultSchemaOptions, Message, Document<unknown, {}, import("mongoose").FlatRecord<Message>, {}, import("mongoose").ResolveSchemaOptions<import("mongoose").DefaultSchemaOptions>> & import("mongoose").FlatRecord<Message> & {
+    _id: import("mongoose").Types.ObjectId;
+} & {
+    __v: number;
+}>;
