@@ -6,7 +6,7 @@ import * as ExcelJS from 'exceljs';
 import * as path from 'path';
 import * as fs from 'fs';
 
-const BOT_TOKEN = '8237553914:AAE19a-64DxV--NJt5b-cfxjbKpKDivwIQQ';
+const BOT_TOKEN = '8082153813:AAEOWJvSMYv-kqYrHdw_7Jsg2NSWhX3c7Ns';
 const ADMIN_CHAT_ID = 5531717864;
 
 @Injectable()
