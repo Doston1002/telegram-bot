@@ -1,2 +1,1 @@
-export declare class BotModule {
-}
+export declare class BotModule {}
