@@ -2,7 +2,7 @@ import type { Response } from 'express';
 import type { Model } from 'mongoose';
 import { Message } from './message.entity';
 export declare class BotController {
-    private readonly messageModel;
-    constructor(messageModel: Model<Message>);
-    downloadExcel(res: Response): Promise<Response<any, Record<string, any>>>;
+  private readonly messageModel;
+  constructor(messageModel: Model<Message>);
+  downloadExcel(res: Response): Promise<Response<any, Record<string, any>>>;
 }

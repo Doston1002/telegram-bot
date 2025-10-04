@@ -1,21 +1,17 @@
-import { Injectable, type OnModuleInit } from '@nestjs/common';
-import type { Model } from 'mongoose';
-import type { MessageDocument } from './message.entity';
+import { Injectable, OnModuleInit } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Message, MessageDocument } from './message.entity';
 import { Telegraf, Markup } from 'telegraf';
-import * as ExcelJS from 'exceljs';
-import * as path from 'path';
-import * as fs from 'fs';
 
-const BOT_TOKEN = '8082153813:AAEOWJvSMYv-kqYrHdw_7Jsg2NSWhX3c7Ns';
-const ADMIN_CHAT_ID = 5531717864;
+const BOT_TOKEN = process.env.BOT_TOKEN || '8082153813:AAEOWJvSMYv-kqYrHdw_7Jsg2NSWhX3c7Ns';
 
 @Injectable()
 export class BotService implements OnModuleInit {
   private bot: Telegraf;
   private userSteps = new Map<number, string>();
-  private messageModel: Model<MessageDocument>;
 
-  constructor() {
+  constructor(@InjectModel(Message.name) private messageModel: Model<MessageDocument>) {
     this.bot = new Telegraf(BOT_TOKEN);
   }
 
@@ -26,96 +22,12 @@ export class BotService implements OnModuleInit {
   }
 
   startBot() {
-    // /start - Admin uchun Excel hisobot, oddiy foydalanuvchilar uchun ro'yxatdan o'tish
+    // /start
     this.bot.start(async ctx => {
       const chatIdNum = ctx.chat.id;
-
-      if (chatIdNum === ADMIN_CHAT_ID) {
-        await ctx.reply("📊 Ma'lumotlar yuklanmoqda... Iltimos, kuting.");
-
-        try {
-          const docs: any[] = await this.messageModel.find({}).sort({ createdAt: 1 }).exec();
-
-          if (docs.length === 0) {
-            return ctx.reply("📭 Umumiy bazada hech qanday ma'lumot yo'q.");
-          }
-
-          const workbook = new ExcelJS.Workbook();
-          const worksheet = workbook.addWorksheet("Ro'yxatdan o'tganlar");
-
-          worksheet.addRow([]);
-          worksheet.getCell(
-            'A1',
-          ).value = `📊 Hisobot: Barcha ma'lumotlar (${docs.length} ta yozuv), saralangan: Eski birinchi`;
-          worksheet.getCell('A1').font = { bold: true, color: { argb: 'FF0070C0' } };
-          worksheet.addRow([]);
-
-          worksheet.columns = [
-            { header: 'Ism Familiya', key: 'firstName', width: 25 },
-            { header: 'Jins', key: 'gender', width: 15 },
-            { header: "Tug'ilgan kun", key: 'birthDate', width: 20 },
-            { header: 'Viloyat', key: 'region', width: 20 },
-            { header: 'Tuman/Shahar', key: 'district', width: 20 },
-            { header: 'Manzil', key: 'address', width: 30 },
-            { header: 'Maktab raqami', key: 'schoolNumber', width: 15 },
-            { header: 'Sinf', key: 'grade', width: 15 },
-            { header: "Ta'lim turi", key: 'educationType', width: 30 },
-            { header: "Yo'nalish", key: 'specialization', width: 25 },
-            { header: 'Nogironlik guruhi', key: 'disabilityGroup', width: 20 },
-            { header: 'Telefon raqam', key: 'phoneNumber', width: 20 },
-            { header: 'Yaratilgan vaqt (Toshkent)', key: 'createdAt', width: 25 },
-          ];
-
-          docs.forEach(msg => {
-            const row = msg.toObject();
-            row.birthDate = row.birthDate
-              ? new Date(row.birthDate).toLocaleDateString('uz-UZ', { timeZone: 'Asia/Tashkent' })
-              : '';
-            row.createdAt = row.createdAt
-              ? new Date(row.createdAt).toLocaleString('uz-UZ', {
-                  timeZone: 'Asia/Tashkent',
-                  hour12: false,
-                  year: 'numeric',
-                  month: '2-digit',
-                  day: '2-digit',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit',
-                })
-              : '';
-            row.phoneNumber = row.phoneNumber || '';
-            worksheet.addRow(row);
-          });
-
-          const tempDir = path.join(__dirname, '..', '..', 'temp');
-          if (!fs.existsSync(tempDir)) {
-            fs.mkdirSync(tempDir, { recursive: true });
-          }
-
-          const fileName = `hisobot_${new Date().toISOString().split('T')[0]}.xlsx`;
-          const filePath = path.join(tempDir, fileName);
-          await workbook.xlsx.writeFile(filePath);
-
-          await ctx.replyWithDocument({
-            source: filePath,
-            filename: fileName,
-          });
-
-          fs.unlinkSync(filePath);
-
-          await ctx.reply(
-            `✅ Hisobot yuborildi! Jami ${docs.length} ta ma'lumot, saralangan: Eski birinchi (yangi oxirida). Vaqt Toshkent bo'yicha.`,
-          );
-        } catch (error) {
-          console.error('Hisobot xatosi:', error);
-          await ctx.reply('❌ Hisobot yaratishda xato: ' + error.message);
-        }
-        return;
-      }
-
       if (this.userSteps.has(chatIdNum)) {
         await ctx.reply(
-          "Sizda allaqachon ro'yxatdan o'tish jarayoni boshlangan. Iltimos, uni tugating yoki /reset buyrug'ini yuboring.",
+          'Sizda allaqachon ro‘yxatdan o‘tish jarayoni boshlangan. Iltimos, uni tugating yoki /reset buyrug‘ini yuboring.',
           Markup.inlineKeyboard([[Markup.button.callback('🔄 Jarayonni tozalash', 'reset_steps')]]),
         );
         return;
@@ -123,7 +35,7 @@ export class BotService implements OnModuleInit {
 
       this.userSteps.set(chatIdNum, 'askName');
       await ctx.reply(
-        "Assalomu alaykum!\n\nIsm va familiyangizni lotin alifbosida, pasport yoki tug'ilganlik guvohnomasiga mos ravishda yozing:",
+        'Assalomu alaykum!\n\nIsm va familiyangizni lotin alifbosida, pasport yoki tug‘ilganlik guvohnomasiga mos ravishda yozing:',
       );
     });
 
@@ -131,23 +43,14 @@ export class BotService implements OnModuleInit {
     this.bot.command('reset', async ctx => {
       const chatIdNum = ctx.chat.id;
       this.userSteps.delete(chatIdNum);
-      await ctx.reply("✅ Jarayon tozalandi. Endi /start buyrug'ini bosing.");
-    });
-
-    this.bot.command('stats', async ctx => {
-      if (ctx.chat.id !== ADMIN_CHAT_ID) {
-        return ctx.reply("❌ Ruxsat yo'q.");
-      }
-
-      const count = await this.messageModel.countDocuments({});
-      await ctx.reply(`📈 Statistik: Umumiy ${count} ta ro'yxatdan o'tgan foydalanuvchi.`);
+      await ctx.reply('✅ Jarayon tozalandi. Endi /start buyrug‘ini bosing.');
     });
 
     this.bot.action('reset_steps', async ctx => {
       const chatIdNum = ctx.chat.id;
       this.userSteps.delete(chatIdNum);
       await ctx.answerCbQuery('Jarayon tozalandi!');
-      await ctx.reply("✅ Jarayon tozalandi. Endi ro'yxatdan o'tishni boshlang.");
+      await ctx.reply('✅ Jarayon tozalandi. Endi ro‘yxatdan o‘tishni boshlang.');
     });
 
     // Matn xabarlari umumiy handleri
@@ -178,35 +81,6 @@ export class BotService implements OnModuleInit {
         );
       }
 
-      // askBirthDate
-      if (step === 'askBirthDate') {
-        const birthDateStr = ctx.message.text.trim();
-        const dateRegex = /^\d{2}\.\d{2}\.\d{4}$/;
-        if (!dateRegex.test(birthDateStr)) {
-          return ctx.reply(
-            "Iltimos, tug'ilgan kuningizni DD.MM.YYYY formatida kiriting (masalan: 02.10.2010):",
-          );
-        }
-
-        const [day, month, year] = birthDateStr.split('.').map(Number);
-        const birthDate = new Date(year, month - 1, day);
-        if (isNaN(birthDate.getTime()) || birthDate > new Date()) {
-          return ctx.reply(
-            "Noto'g'ri sana. Iltimos, to'g'ri sana kiriting (kelajak sanasi bo'lmasligi kerak):",
-          );
-        }
-
-        await this.messageModel.updateOne({ chatId }, { birthDate });
-
-        this.userSteps.set(chatIdNum, 'askRegion');
-        return ctx.reply(
-          'Hududingizni tanlang:',
-          Markup.inlineKeyboard(
-            regions.map(r => [Markup.button.callback(r.name, `region_${r.id}`)]),
-          ),
-        );
-      }
-
       // askAddress
       if (step === 'askAddress') {
         await this.messageModel.updateOne({ chatId }, { address: ctx.message.text });
@@ -233,6 +107,35 @@ export class BotService implements OnModuleInit {
           );
         }
       }
+
+      // askBirthDate
+      if (step === 'askBirthDate') {
+        const birthDateStr = ctx.message.text.trim();
+        const dateRegex = /^\d{2}\.\d{2}\.\d{4}$/;
+        if (!dateRegex.test(birthDateStr)) {
+          return ctx.reply(
+            "Iltimos, tug'ilgan kuningizni DD.MM.YYYY formatida kiriting (masalan: 02.10.1999):",
+          );
+        }
+
+        const [day, month, year] = birthDateStr.split('.').map(Number);
+        const birthDate = new Date(year, month - 1, day);
+        if (isNaN(birthDate.getTime()) || birthDate > new Date()) {
+          return ctx.reply(
+            "Noto'g'ri sana. Iltimos, to'g'ri sana kiriting (kelajak sanasi bo'lmasligi kerak):",
+          );
+        }
+
+        await this.messageModel.updateOne({ chatId }, { birthDate });
+
+        this.userSteps.set(chatIdNum, 'askPhone');
+        return ctx.reply(
+          'Aloqa uchun telefon raqamingizni ulashing:',
+          Markup.keyboard([Markup.button.contactRequest('📞 Telefon raqamni ulashish')])
+            .oneTime()
+            .resize(),
+        );
+      }
     });
 
     // Contact handler
@@ -248,7 +151,7 @@ export class BotService implements OnModuleInit {
 
       // Jarayon tugadi
       this.userSteps.delete(chatIdNum);
-      await ctx.reply("✅ Telefon raqamingiz saqlandi. Ro'yxatdan o'tish jarayoni yakunlandi!");
+      await ctx.reply('✅ Telefon raqamingiz saqlandi. Ro‘yxatdan o‘tish jarayoni yakunlandi!');
       await ctx.reply('Jarayon tugadi.', Markup.removeKeyboard());
     });
 
@@ -257,9 +160,11 @@ export class BotService implements OnModuleInit {
       const gender = ctx.match[1] === 'male' ? 'Erkak' : 'Ayol';
       await this.messageModel.updateOne({ chatId: ctx.chat.id.toString() }, { gender });
 
-      this.userSteps.set(ctx.chat.id, 'askBirthDate');
-      await ctx.answerCbQuery();
-      await ctx.reply("Tug'ilgan kuningizni kiriting (DD.MM.YYYY formatida, masalan: 02.10.2010):");
+      this.userSteps.set(ctx.chat.id, 'askRegion');
+      await ctx.reply(
+        'Hududingizni tanlang:',
+        Markup.inlineKeyboard(regions.map(r => [Markup.button.callback(r.name, `region_${r.id}`)])),
+      );
     });
 
     // Region tanlash
@@ -268,7 +173,7 @@ export class BotService implements OnModuleInit {
       const region = regions.find(r => r.id == +regionId);
 
       if (!region) {
-        return ctx.reply("Hudud topilmadi. /start buyrug'ini qayta bosing.");
+        return ctx.reply('Hudud topilmadi. /start buyrug‘ini qayta bosing.');
       }
 
       await this.messageModel.updateOne(
@@ -280,7 +185,7 @@ export class BotService implements OnModuleInit {
 
       const districts = districtsData[regionId] || [];
       if (districts.length === 0) {
-        await ctx.reply("Bu hudud uchun tumanlar topilmadi. /start buyrug'ini qayta bosing.");
+        await ctx.reply('Bu hudud uchun tumanlar topilmadi. /start buyrug‘ini qayta bosing.');
         return;
       }
 
@@ -314,10 +219,10 @@ export class BotService implements OnModuleInit {
       this.userSteps.set(ctx.chat.id, 'askEducationType');
 
       await ctx.reply(
-        "Ta'lim turini tanlang:",
+        'Ta’lim turini tanlang:',
         Markup.inlineKeyboard([
-          [Markup.button.callback("Inklyuziv ta'lim sinfi", 'edu_inclusive')],
-          [Markup.button.callback("Uyda yakka tartibdagi ta'lim", 'edu_home')],
+          [Markup.button.callback('Inklyuziv ta’lim sinfi', 'edu_inclusive')],
+          [Markup.button.callback('Uyda yakka tartibdagi ta’lim', 'edu_home')],
         ]),
       );
     });
@@ -325,7 +230,7 @@ export class BotService implements OnModuleInit {
     // Education type
     this.bot.action(/edu_(.+)/, async ctx => {
       const type =
-        ctx.match[1] === 'inclusive' ? "Inklyuziv ta'lim sinfi" : "Uyda yakka tartibdagi ta'lim";
+        ctx.match[1] === 'inclusive' ? 'Inklyuziv ta’lim sinfi' : 'Uyda yakka tartibdagi ta’lim';
       await this.messageModel.updateOne(
         { chatId: ctx.chat.id.toString() },
         { educationType: type },
@@ -333,7 +238,7 @@ export class BotService implements OnModuleInit {
 
       this.userSteps.set(ctx.chat.id, 'askSpecialization');
       await ctx.reply(
-        "Yo'nalishingizni tanlang:",
+        'Yo‘nalishingizni tanlang:',
         Markup.inlineKeyboard([
           [Markup.button.callback('Estrada-vokal yoki anʼanaviy ijrochilik', 'spec_estrada')],
           [Markup.button.callback('Tasviriy sanʼat', 'spec_art')],
@@ -357,53 +262,9 @@ export class BotService implements OnModuleInit {
 
       await this.messageModel.updateOne({ chatId: ctx.chat.id.toString() }, { specialization });
 
-      this.userSteps.set(ctx.chat.id, 'askDisabilityGroup');
+      this.userSteps.set(ctx.chat.id, 'askBirthDate');
       await ctx.answerCbQuery();
-      await ctx.reply(
-        'Nogironlik guruhini tanlang:',
-        Markup.inlineKeyboard([
-          [Markup.button.callback('1-guruh', 'disability_1')],
-          [Markup.button.callback('2-guruh', 'disability_2')],
-          [Markup.button.callback('3-guruh', 'disability_3')],
-          [Markup.button.callback('Bolalikdan nogiron', 'disability_child')],
-          [Markup.button.callback('Belgilanmagan', 'disability_none')],
-        ]),
-      );
-    });
-
-    // Disability group selection
-    this.bot.action(/disability_(.+)/, async ctx => {
-      let disabilityGroup = '';
-      switch (ctx.match[1]) {
-        case '1':
-          disabilityGroup = '1-guruh';
-          break;
-        case '2':
-          disabilityGroup = '2-guruh';
-          break;
-        case '3':
-          disabilityGroup = '3-guruh';
-          break;
-        case 'child':
-          disabilityGroup = 'Bolalikdan nogiron';
-          break;
-        case 'none':
-          disabilityGroup = 'Belgilanmagan';
-          break;
-        default:
-          disabilityGroup = 'Nomaʼlum';
-      }
-
-      await this.messageModel.updateOne({ chatId: ctx.chat.id.toString() }, { disabilityGroup });
-
-      this.userSteps.set(ctx.chat.id, 'askPhone');
-      await ctx.answerCbQuery();
-      await ctx.reply(
-        'Aloqa uchun telefon raqamingizni ulashing:',
-        Markup.keyboard([Markup.button.contactRequest('📞 Telefon raqamni ulashish')])
-          .oneTime()
-          .resize(),
-      );
+      await ctx.reply("Tug'ilgan kuningizni kiriting (DD.MM.YYYY formatida, masalan: 02.10.1999):");
     });
 
     // Umumiy xato handling
@@ -411,16 +272,12 @@ export class BotService implements OnModuleInit {
       if (ctx.callbackQuery) {
         const chatIdNum = ctx.chat.id;
         if (!this.userSteps.has(chatIdNum)) {
-          await ctx.answerCbQuery("Iltimos, /start buyrug'ini bosing va qaytadan boshlang.");
+          await ctx.answerCbQuery('Iltimos, /start buyrug‘ini bosing va qaytadan boshlang.');
           return;
         }
       }
       await next();
     });
-  }
-
-  setMessageModel(messageModel: Model<MessageDocument>) {
-    this.messageModel = messageModel;
   }
 }
 
@@ -446,20 +303,20 @@ const districtsData: Record<string, string[]> = {
     'Nukus shahar',
     'Amudaryo tumani',
     'Beruniy tumani',
-    "Bo'zatov tumani",
+    'Bo‘zatov tumani',
     'Chimboy tumani',
-    "Ellikqal'a tumani",
+    'Ellikqal’a tumani',
     'Kegeyli tumani',
-    "Mo'ynoq tumani",
+    'Mo‘ynoq tumani',
     'Nukus tumani',
-    "Qonliko'l tumani",
-    "Qo'ng'irot tumani",
-    "Qorao'zak tumani",
+    'Qonliko‘l tumani',
+    'Qo‘ng‘irot tumani',
+    'Qorao‘zak tumani',
     'Shumanay tumani',
-    "Taxtako'pir tumani",
+    'Taxtako‘pir tumani',
     'Taqiyatosh tumani',
-    "To'rtko'l tumani",
-    "Xo'jayli tumani",
+    'To‘rtko‘l tumani',
+    'Xo‘jayli tumani',
   ],
   2: [
     'Andijon shahar',
@@ -468,15 +325,15 @@ const districtsData: Record<string, string[]> = {
     'Asaka tumani',
     'Baliqchi tumani',
     'Buloqboshi tumani',
-    "Bo'ston tumani",
+    'Bo‘ston tumani',
     'Jalaquduq tumani',
     'Izboskan tumani',
-    "Qo'rg'ontepa tumani",
+    'Qo‘rg‘ontepa tumani',
     'Marhamat tumani',
-    "Oltinko'l tumani",
+    'Oltinko‘l tumani',
     'Paxtaobod tumani',
-    "Ulug'nor tumani",
-    "Xo'jaobod tumani",
+    'Ulug‘nor tumani',
+    'Xo‘jaobod tumani',
     'Shahrixon tumani',
   ],
   3: [
@@ -484,10 +341,10 @@ const districtsData: Record<string, string[]> = {
     'Kogon shahar',
     'Buxoro tumani',
     'Vobkent tumani',
-    "G'ijduvon tumani",
+    'G‘ijduvon tumani',
     'Jondor tumani',
     'Kogon tumani',
-    "Qorako'l tumani",
+    'Qorako‘l tumani',
     'Qorovulbozor tumani',
     'Olot tumani',
     'Peshku tumani',
@@ -498,12 +355,12 @@ const districtsData: Record<string, string[]> = {
     'Jizzax shahar',
     'Arnasoy tumani',
     'Baxmal tumani',
-    "G'allaorol tumani",
-    "Do'stlik tumani",
+    'G‘allaorol tumani',
+    'Do‘stlik tumani',
     'Zarbdor tumani',
     'Zafarobod tumani',
     'Zomin tumani',
-    "Mirzacho'l tumani",
+    'Mirzacho‘l tumani',
     'Paxtakor tumani',
     'Forish tumani',
     'Sharof Rashidov tumani',
@@ -512,12 +369,12 @@ const districtsData: Record<string, string[]> = {
   5: [
     'Qarshi shahar',
     'Shahrisabz shahar',
-    "G'uzor tumani",
+    'G‘uzor tumani',
     'Dehqonobod tumani',
     'Kasbi tumani',
     'Kitob tumani',
     'Koson tumani',
-    "Ko'kdala tumani",
+    'Ko‘kdala tumani',
     'Qamashi tumani',
     'Qarshi tumani',
     'Mirishkor tumani',
@@ -525,12 +382,12 @@ const districtsData: Record<string, string[]> = {
     'Nishon tumani',
     'Chiroqchi tumani',
     'Shahrisabz tumani',
-    "Yakkabog' tumani",
+    'Yakkabog‘ tumani',
   ],
   6: [
     'Navoiy shahar',
     'Zarafshon shahar',
-    "G'ozg'on shahar",
+    'G‘ozg‘on shahar',
     'Karmana tumani',
     'Konimex tumani',
     'Qiziltepa tumani',
@@ -549,26 +406,26 @@ const districtsData: Record<string, string[]> = {
     'Namangan tumani',
     'Norin tumani',
     'Pop tumani',
-    "To'raqo'rg'on tumani",
+    'To‘raqo‘rg‘on tumani',
     'Uychi tumani',
-    "Uchqo'rg'on tumani",
+    'Uchqo‘rg‘on tumani',
     'Chortoq tumani',
     'Chust tumani',
-    "Yangiqo'rg'on tumani",
+    'Yangiqo‘rg‘on tumani',
   ],
   8: [
     'Samarqand shahar',
-    "Kattaqo'rg'on shahar",
-    "Bulung'ur tumani",
+    'Kattaqo‘rg‘on shahar',
+    'Bulung‘ur tumani',
     'Jomboy tumani',
     'Ishtixon tumani',
-    "Kattaqo'rg'on tumani",
-    "Qo'shrabot tumani",
+    'Kattaqo‘rg‘on tumani',
+    'Qo‘shrabot tumani',
     'Narpay tumani',
     'Nurobod tumani',
     'Oqdaryo tumani',
     'Payariq tumani',
-    "Pastdarg'om tumani",
+    'Pastdarg‘om tumani',
     'Paxtachi tumani',
     'Samarqand tumani',
     'Toyloq tumani',
@@ -580,16 +437,16 @@ const districtsData: Record<string, string[]> = {
     'Bandixon tumani',
     'Boysun tumani',
     'Denov tumani',
-    "Jarqo'rg'on tumani",
+    'Jarqo‘rg‘on tumani',
     'Qiziriq tumani',
-    "Qumqo'rg'on tumani",
+    'Qumqo‘rg‘on tumani',
     'Muzrabot tumani',
     'Oltinsoy tumani',
     'Sariosiyo tumani',
     'Termiz tumani',
     'Uzun tumani',
     'Sherobod tumani',
-    "Sho'rchi tumani",
+    'Sho‘rchi tumani',
   ],
   10: [
     'Guliston shahar',
@@ -611,51 +468,51 @@ const districtsData: Record<string, string[]> = {
     'Bekobod shahar',
     'Ohangaron shahar',
     'Chirchiq shahar',
-    "Yangiyo'l shahar",
+    'Yangiyo‘l shahar',
     'Bekobod tumani',
-    "Bo'ka tumani",
-    "Bo'stonliq tumani",
+    'Bo‘ka tumani',
+    'Bo‘stonliq tumani',
     'Zangiota tumani',
     'Qibray tumani',
     'Quyichirchiq tumani',
-    "Oqqo'rg'on tumani",
+    'Oqqo‘rg‘on tumani',
     'Ohangaron tumani',
     'Parkent tumani',
     'Piskent tumani',
     'Toshkent tumani',
-    "O'rtachirchiq tumani",
+    'O‘rtachirchiq tumani',
     'Chinoz tumani',
     'Yuqorichirchiq tumani',
-    "Yangiyo'l tumani",
+    'Yangiyo‘l tumani',
   ],
   12: [
-    "Farg'ona shahar",
-    "Marg'ilon shahar",
+    'Farg‘ona shahar',
+    'Marg‘ilon shahar',
     'Quvasoy shahar',
-    "Qo'qon shahar",
-    "Bag'dod tumani",
+    'Qo‘qon shahar',
+    'Bag‘dod tumani',
     'Beshariq tumani',
     'Buvayda tumani',
-    "Dang'ara tumani",
+    'Dang‘ara tumani',
     'Yozyovon tumani',
     'Oltiariq tumani',
-    "Qo'shtepa tumani",
+    'Qo‘shtepa tumani',
     'Rishton tumani',
-    "So'x tumani",
+    'So‘x tumani',
     'Toshloq tumani',
-    "Uchko'prik tumani",
-    "Farg'ona tumani",
+    'Uchko‘prik tumani',
+    'Farg‘ona tumani',
     'Furqat tumani',
-    "O'zbekiston tumani",
+    'O‘zbekiston tumani',
     'Quva tumani',
   ],
   13: [
     'Urganch shahar',
     'Xiva shahar',
-    "Bog'ot tumani",
+    'Bog‘ot tumani',
     'Gurlan tumani',
-    "Qo'shko'pir tumani",
-    "Tuproqqal'a tumani",
+    'Qo‘shko‘pir tumani',
+    'Tuproqqal’a tumani',
     'Urganch tumani',
     'Hazorasp tumani',
     'Xiva tumani',
@@ -666,7 +523,7 @@ const districtsData: Record<string, string[]> = {
   ],
   14: [
     'Bektemir tumani',
-    "Mirzo Ulug'bek tumani",
+    'Mirzo Ulug‘bek tumani',
     'Mirobod tumani',
     'Olmazor tumani',
     'Sergeli tumani',
